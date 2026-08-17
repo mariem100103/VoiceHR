@@ -1,0 +1,8 @@
+.env
+.git
+.gitignore
+voicehr.db
+recordings/*
+transcripts/*
+__pycache__/
+*.pyc
