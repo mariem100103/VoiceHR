@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoiceHR Candidate Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #151c2c;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #3b82f6;
+      --border: #1f293d;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); padding: 2rem 1rem; }
+    .main { max-width: 860px; margin: 0 auto; }
+    .header { background: var(--card-bg); border: 1px solid var(--border); padding: 2rem; border-radius: 16px; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .score-badge { font-size: 2.5rem; font-weight: 800; color: var(--primary); }
+    .cefr-tag { background: #1e3a8a; color: #93c5fd; padding: 0.35rem 0.85rem; border-radius: 8px; font-weight: 700; font-size: 1.1rem; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+    .dim-row { margin-bottom: 1rem; }
+    .dim-header { display: flex; justify-content: space-between; margin-bottom: 0.35rem; font-size: 0.9rem; font-weight: 500; }
+    .dim-bar { height: 10px; background: #1e293b; border-radius: 5px; overflow: hidden; }
+    .dim-fill { height: 100%; background: var(--primary); border-radius: 5px; }
+    ul.bullets { list-style: none; }
+    ul.bullets li { position: relative; padding-left: 1.5rem; margin-bottom: 0.5rem; font-size: 0.95rem; line-height: 1.4; color: var(--text-muted); }
+    ul.bullets.strengths li::before { content: "✓"; position: absolute; left: 0; color: var(--success); font-weight: bold; }
+    ul.bullets.concerns li::before { content: "⚠"; position: absolute; left: 0; color: var(--warning); font-weight: bold; }
+    .evidence-item { background: #0f172a; border: 1px solid var(--border); padding: 1rem; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.9rem; }
+    .evidence-header { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.35rem; }
+    .transcript-box { max-height: 400px; overflow-y: auto; background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); }
+    .msg { margin-bottom: 0.85rem; font-size: 0.9rem; line-height: 1.4; }
+    .msg.user { color: #93c5fd; }
+    .msg.agent { color: #d1d5db; }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="header">
+      <div>
+        <h1 id="candidate-name" style="font-size: 1.75rem;">Loading Report...</h1>
+        <p id="candidate-meta" style="color: var(--text-muted); margin-top: 0.35rem;"></p>
+      </div>
+      <div style="text-align: right;">
+        <div id="overall-score" class="score-badge">--</div>
+        <span id="cefr-badge" class="cefr-tag">--</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Language Proficiency Dimensions</h2>
+      <div id="dimensions-container"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+      <div class="card">
+        <h2 style="color: var(--success);">Key Strengths</h2>
+        <ul id="strengths-list" class="bullets strengths"></ul>
+      </div>
+      <div class="card">
+        <h2 style="color: var(--warning);">Areas for Concern</h2>
+        <ul id="concerns-list" class="bullets concerns"></ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Timestamped Evidence</h2>
+      <div id="evidence-container"></div>
+    </div>
+
+    <div class="card">
+      <h2>Audio Recording</h2>
+      <audio id="audio-player" controls style="width: 100%; margin-top: 0.5rem;"></audio>
+    </div>
+
+    <div class="card">
+      <h2>Full Transcript</h2>
+      <div id="transcript-container" class="transcript-box"></div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+
+    async function loadReport() {
+      if (!token) return alert("Missing report token.");
+      try {
+        const res = await fetch(`/api/report/${token}`);
+        if (!res.ok) return alert("Report not found.");
+        const data = await res.json();
+
+        document.getElementById('candidate-name').textContent = data.candidate_name;
+        document.getElementById('candidate-meta').textContent = `${data.candidate_email} • ${data.language.toUpperCase()} Assessment`;
+        document.getElementById('overall-score').textContent = `${data.overall_score}/100`;
+        document.getElementById('cefr-badge').textContent = data.result;
+
+        // Render Dimensions
+        const dims = data.dimension_scores;
+        const dimsContainer = document.getElementById('dimensions-container');
+        const dimNames = { interaction: "Interaction & Comprehension", fluency: "Fluency & Coherence", grammar: "Grammar & Control", vocabulary: "Vocabulary & Range", pronunciation: "Pronunciation & Clarity" };
+        dimsContainer.innerHTML = Object.keys(dims).map(key => `
+          <div class="dim-row">
+            <div class="dim-header"><span>${dimNames[key]}</span><span>${dims[key]}%</span></div>
+            <div class="dim-bar"><div class="dim-fill" style="width: ${dims[key]}%"></div></div>
+          </div>
+        `).join('');
+
+        // Strengths & Concerns
+        document.getElementById('strengths-list').innerHTML = data.strengths.map(s => `<li>${s}</li>`).join('');
+        document.getElementById('concerns-list').innerHTML = data.concerns.map(c => `<li>${c}</li>`).join('');
+
+        // Evidence
+        document.getElementById('evidence-container').innerHTML = data.evidence.map(e => `
+          <div class="evidence-item">
+            <div class="evidence-header"><span>${e.dimension}</span><span>[${e.timestamp}]</span></div>
+            <div style="font-style: italic; margin-bottom: 0.35rem;">"${e.quote}"</div>
+            <div style="color: var(--text-muted);">${e.note}</div>
+          </div>
+        `).join('');
+
+        // Audio & Transcript
+        document.getElementById('audio-player').src = data.recording_url;
+        document.getElementById('transcript-container').innerHTML = data.transcript.map(t => `
+          <div class="msg ${t.role}">
+            <strong>${t.role === 'user' ? data.candidate_name : 'Sarah (AI)'}:</strong> ${t.message}
+          </div>
+        `).join('');
+
+      } catch (e) {
+        alert("Failed to load report data.");
+      }
+    }
+
+    loadReport();
+  </script>
+</body>
+</html>

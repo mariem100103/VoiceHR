@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoiceHR Candidate Interview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #151c2c;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --border: #1f293d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1.5rem; }
+    .container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 520px; padding: 2.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center; }
+    p.subtitle { color: var(--text-muted); font-size: 0.95rem; text-align: center; margin-bottom: 2rem; }
+    .step { display: none; }
+    .step.active { display: block; }
+    .btn { display: block; width: 100%; padding: 0.85rem; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; font-size: 1rem; margin-top: 1.5rem; text-align: center; }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { background: #374151; cursor: not-allowed; }
+    .checkbox-group { display: flex; align-items: flex-start; gap: 0.75rem; background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-top: 1rem; }
+    .checkbox-group input { margin-top: 0.2rem; }
+    .checkbox-group label { font-size: 0.875rem; color: var(--text-muted); line-height: 1.4; }
+    .meter { height: 12px; background: #1e293b; border-radius: 6px; overflow: hidden; margin-top: 1rem; border: 1px solid var(--border); }
+    .meter-fill { height: 100%; width: 0%; background: var(--success); transition: width 0.1s linear; }
+    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: #1e293b; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem; font-weight: 500; margin-bottom: 1.5rem; border: 1px solid var(--border); }
+    .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--success); animation: pulse-animation 1.5s infinite; }
+    @keyframes pulse-animation { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    .error-box { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #f87171; padding: 1rem; border-radius: 8px; font-size: 0.85rem; text-align: center; margin-top: 1rem; }
+    .info-box { background: #0f172a; border: 1px solid var(--border); padding: 0.85rem; border-radius: 8px; font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem; text-align: center; }
+  </style>
+  <script type="module">
+    import { Conversation } from 'https://cdn.jsdelivr.net/npm/@elevenlabs/client/+esm';
+    window.ElevenLabsConversation = Conversation;
+  </script>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Error step -->
+    <div id="error-step" class="step">
+      <h1>Link Invalid</h1>
+      <p id="error-msg" class="error-box">The interview token is invalid or has expired.</p>
+    </div>
+
+    <!-- Loading step -->
+    <div id="loading-step" class="step active">
+      <h1>Validating Link…</h1>
+      <p class="subtitle">Please wait while we verify your interview credentials.</p>
+    </div>
+
+    <!-- Consent step -->
+    <div id="consent-step" class="step">
+      <h1>Welcome, <span id="candidate-name-display"></span></h1>
+      <p class="subtitle">Language Assessment — <span id="language-display"></span></p>
+      <p style="font-size:0.9rem; line-height:1.5; color: var(--text-muted);">
+        You are about to begin a 10-minute automated spoken language assessment with Sarah, our AI evaluator.
+      </p>
+      <div class="checkbox-group">
+        <input type="checkbox" id="consent-check">
+        <label for="consent-check">I consent to recording this voice session for language assessment purposes.</label>
+      </div>
+      <button id="consent-btn" class="btn" disabled>Continue to Mic Check</button>
+    </div>
+
+    <!-- Mic test step -->
+    <div id="mic-step" class="step">
+      <h1>Microphone Test</h1>
+      <p class="subtitle">Speak into your microphone to confirm your audio level.</p>
+      <div class="meter"><div id="meter-fill" class="meter-fill"></div></div>
+      <div class="info-box" id="mic-hint">Waiting for microphone signal…</div>
+      <button id="mic-btn" class="btn" disabled>Mic is Ready — Start Interview</button>
+      <div id="start-error" class="error-box" style="display:none;"></div>
+    </div>
+
+    <!-- Live interview step -->
+    <div id="interview-step" class="step">
+      <div style="text-align:center;">
+        <div class="status-badge"><span class="pulse"></span> Live Assessment with Sarah</div>
+      </div>
+      <h1>Interview in Progress</h1>
+      <p class="subtitle">Please listen closely to Sarah and answer naturally.</p>
+      <div style="text-align:center; font-size: 2.5rem; font-weight: 700; margin: 2rem 0;" id="timer">00:00</div>
+      <button id="end-btn" class="btn" style="background:#dc2626;">End Interview Early</button>
+    </div>
+
+    <!-- Submitting step -->
+    <div id="submitting-step" class="step">
+      <h1>Submitting Results…</h1>
+      <p class="subtitle">Please wait while your assessment is being processed.</p>
+    </div>
+
+    <!-- Complete step -->
+    <div id="complete-step" class="step">
+      <h1>Interview Complete!</h1>
+      <p class="subtitle">Thank you. Your assessment has been submitted to the recruitment team.</p>
+    </div>
+
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    let candidateData = null;
+    let audioContext = null;
+    let conversation = null;
+    let timerInterval = null;
+    let callStartTime = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedStream = null;
+    let submitting = false;
+    // Collect transcript messages from SDK callbacks
+    const collectedTranscript = [];
+
+    function showStep(id) {
+      document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // --- Step 0: Validate token ---
+    async function init() {
+      if (!token) {
+        document.getElementById('error-msg').textContent = "Missing token in URL.";
+        return showStep('error-step');
+      }
+      try {
+        const res = await fetch(`/api/interview/${token}`);
+        if (!res.ok) {
+          const err = await res.json();
+          document.getElementById('error-msg').textContent = err.detail || "Invalid link.";
+          return showStep('error-step');
+        }
+        candidateData = await res.json();
+        document.getElementById('candidate-name-display').textContent = candidateData.candidate_name;
+        document.getElementById('language-display').textContent =
+          candidateData.language === 'fr' ? 'Français' : 'English';
+        showStep('consent-step');
+      } catch {
+        document.getElementById('error-msg').textContent = "Server connection error.";
+        showStep('error-step');
+      }
+    }
+
+    // --- Step 1: Consent ---
+    document.getElementById('consent-check').addEventListener('change', (e) => {
+      document.getElementById('consent-btn').disabled = !e.target.checked;
+    });
+
+    document.getElementById('consent-btn').addEventListener('click', async () => {
+      showStep('mic-step');
+      try {
+         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+         let systemStream = null;
+         try {
+           systemStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+         } catch (error) {
+           console.warn('System audio was not shared; microphone-only recording will be used.', error);
+         }
+         const recordingContext = new AudioContext();
+         const recordingDestination = recordingContext.createMediaStreamDestination();
+         recordingContext.createMediaStreamSource(stream).connect(recordingDestination);
+         if (systemStream && systemStream.getAudioTracks().length) {
+           recordingContext.createMediaStreamSource(systemStream).connect(recordingDestination);
+         }
+         recordedStream = recordingDestination.stream;
+         audioChunks = [];
+         mediaRecorder = new MediaRecorder(recordedStream);
+         mediaRecorder.ondataavailable = (event) => {
+           if (event.data.size) audioChunks.push(event.data);
+         };
+         mediaRecorder.start();
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        source.connect(analyser);
+        analyser.fftSize = 64;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let detected = false;
+
+        const tick = () => {
+          analyser.getByteFrequencyData(dataArray);
+          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          const pct = Math.min(100, Math.round((avg / 128) * 100));
+          document.getElementById('meter-fill').style.width = pct + '%';
+          if (pct > 15 && !detected) {
+            detected = true;
+            document.getElementById('mic-btn').disabled = false;
+            document.getElementById('mic-hint').textContent = 'Microphone detected! You can start.';
+          }
+          if (document.getElementById('mic-step').classList.contains('active')) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      } catch {
+        alert("Microphone access is required to proceed.");
+      }
+    });
+
+    // --- Step 2: Start Interview ---
+    document.getElementById('mic-btn').addEventListener('click', async () => {
+      const errorEl = document.getElementById('start-error');
+      errorEl.style.display = 'none';
+
+      try {
+        const startRes = await fetch(`/api/interview/${token}/start`, { method: 'POST' });
+        if (!startRes.ok) {
+          const err = await startRes.json();
+          errorEl.textContent = err.detail || "Could not initialize interview session.";
+          errorEl.style.display = 'block';
+          return;
+        }
+        const { signed_url } = await startRes.json();
+        showStep('interview-step');
+        if (audioContext) audioContext.close();
+
+        callStartTime = Date.now();
+
+         conversation = await window.ElevenLabsConversation.startSession({
+          signedUrl: signed_url,
+
+          // Collect agent messages into transcript
+          onMessage: (msg) => {
+            const elapsed = Math.round((Date.now() - callStartTime) / 1000);
+            collectedTranscript.push({
+              role: msg.source === 'user' ? 'user' : 'agent',
+              message: msg.message,
+              time_in_call_secs: elapsed
+         });
+         const conversationId = typeof conversation.getId === 'function' ? conversation.getId() : null;
+         if (conversationId) fetch(`/api/interview/${token}/conversation`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ conversation_id: conversationId })
+         });
+          },
+
+          onDisconnect: async () => {
+            clearInterval(timerInterval);
+            await submitTranscript();
+          },
+
+          onError: (err) => {
+            console.error("ElevenLabs error:", err);
+          }
+        });
+
+        // Start timer
+        let secs = 0;
+        timerInterval = setInterval(() => {
+          secs++;
+          const m = String(Math.floor(secs / 60)).padStart(2, '0');
+          const s = String(secs % 60).padStart(2, '0');
+          document.getElementById('timer').textContent = `${m}:${s}`;
+        }, 1000);
+
+      } catch (e) {
+        console.error(e);
+        document.getElementById('start-error').textContent = "Failed to connect: " + (e.message || e);
+        document.getElementById('start-error').style.display = 'block';
+      }
+    });
+
+    // End button
+    document.getElementById('end-btn').addEventListener('click', async () => {
+      if (conversation) {
+        await conversation.endSession();
+      }
+      clearInterval(timerInterval);
+      await submitTranscript();
+    });
+
+    // --- Step 3: Submit transcript directly to backend (no webhook needed) ---
+    async function submitTranscript() {
+      if (submitting) return;
+      submitting = true;
+      showStep('submitting-step');
+      try {
+        const totalSecs = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+          await new Promise(resolve => { mediaRecorder.onstop = resolve; });
+        }
+        if (recordedStream) recordedStream.getTracks().forEach(track => track.stop());
+        const audioBase64 = audioChunks.length
+          ? await new Promise(resolve => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(String(reader.result).split(',')[1]);
+              reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
+            })
+          : null;
+        await fetch(`/api/interview/${token}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transcript: collectedTranscript,
+            duration_seconds: totalSecs,
+            audio_base64: audioBase64
+          })
+        });
+      } catch (e) {
+        console.error("Failed to submit transcript:", e);
+      }
+      showStep('complete-step');
+    }
+
+    init();
+  </script>
+</body>
+</html>

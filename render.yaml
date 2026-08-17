@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: voicehr
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: VOICEHR_DATA_DIR
+        value: /var/data
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_AGENT_ID_EN
+        sync: false
+      - key: ELEVENLABS_AGENT_ID_FR
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: BASE_URL
+        sync: false
+    disk:
+      name: voicehr-data
+      mountPath: /var/data
+      sizeGB: 1

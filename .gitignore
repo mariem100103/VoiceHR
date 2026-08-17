@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.py[cod]
+voicehr.db
+recordings/*
+transcripts/*
+!recordings/.gitkeep
+!transcripts/.gitkeep
