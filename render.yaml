@@ -22,7 +22,3 @@ services:
         sync: false
       - key: BASE_URL
         sync: false
-    disk:
-      name: voicehr-data
-      mountPath: /var/data
-      sizeGB: 1
